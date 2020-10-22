@@ -1,26 +1,28 @@
-inputDIR = "fastq"
-outputDIR = "results"
+from os.path import join
 
-IDS, = glob_wildcards(os.path.join(inputDIR, "{id}.txt"))
+inputDIR = "Protocol/data/raw"
+
+IDs = glob_wildcards(join(inputDIR, "{id, [A-Za-z0-9]+}{suffix, (_1)?|(_2)?}.fastq"))
+
 # env created at .snakemake/conda
 env = "envs/protocolMeta.yaml"
 
 rule all:
-    input: expand(os.path.join(outputDIR, "{id}_resultado.txt"), id = IDS)
-
-ruleorder: teste_paired > teste_single
-
-rule teste_single:
-    input: os.path.join(inputDIR, "{id}.txt")
-    output: os.path.join(outputDIR, "{id}_resultado.txt")
-    conda: env
-    threads: workflow.cores
-    shell: "echo {threads} > {output}"
-
-rule teste_paired:
     input:
-        r1 = os.path.join(inputDIR, "{id}_1.txt"),
-        r2 = os.path.join(inputDIR, "{id}_2.txt"),
-    output: os.path.join(outputDIR, "{id}_resultado.txt")
+        #expand("Protocol/data/collapsed/{id}.fasta", id = IDs.id)
+        expand("{id}.fasta", id = IDs.id)
+
+rule fastpSingle:
+    input: join(inputDIR, "{id}.fastq")
+    output: "{id}.fasta"
     conda: env
-    shell: "fastp -v > {output}"
+    #threads: workflow.cores
+    shell: "touch {output}"
+
+rule fastpPaired:
+    input:
+        f = join(inputDIR, "{id}_1.fastq"),
+        r = join(inputDIR, "{id}_2.fastq"),
+    output: "{id}.fasta"
+    conda: env
+    shell: "touch {output}"
