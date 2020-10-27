@@ -1,12 +1,16 @@
 from os.path import join
 
 # default args
-inputDIR = "Protocol/data/raw"
+preprocessingDIR = "Protocol/data"
+inputDIR = join(preprocessingDIR, "raw")
 phredQuality = "20"
-trimmedDIR = "Protocol/data/trimmed"
-referenceDIR = "Protocol/data/removal/reference"
+trimmedDIR = join(preprocessingDIR, "trimmed")
+removalDIR = join(preprocessingDIR, "removal")
+referenceDIR = join(removalDIR, "reference")
 ensemblRelease = "101"
-bowtie2IndexDIR = "Protocol/data/removal/index"
+bowtie2IndexDIR = join(removalDIR, "index")
+assembledDIR = join(preprocessingDIR, "assembled")
+collapsedDIR = join(preprocessingDIR, "collapsed")
 
 # env created at .snakemake/conda
 env = "envs/protocolMeta.yaml"
@@ -16,7 +20,7 @@ IDs = glob_wildcards(join(inputDIR,
 
 rule all:
     input:
-        expand("Protocol/data/trimmed/{id}_trim.fastq", id = IDs.id)
+        expand(join(preprocessingDIR, "collapsed/{id}_collapsed.fasta"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -33,7 +37,6 @@ rule qualityControlPaired:
     input:
         f = join(inputDIR, "{id}_1.fastq"),
         r = join(inputDIR, "{id}_2.fastq"),
-        outputDIR = "Protocol/data/trimmed"
     output:
         f = "{trimmedDIR}/{id}_1_trim.fastq",
         r = "{trimmedDIR}/{id}_2_trim.fastq",
@@ -59,3 +62,61 @@ rule bowtie2BuildHumanIndex:
     conda: env
     threads: workflow.cores
     shell: "bowtie2-build {input} {output} --threads {threads}"
+
+rule removeHumanContaminantsSingle:
+    input:
+        bt2idx = "{bowtie2IndexDIR}/hostHS",
+        trimmed = "{trimmedDIR}/{id}_trim.fastq"
+    output: "{removalDIR}/{id}_unaligned.fastq"
+    conda: env
+    threads: workflow.cores
+    shell: "bowtie2 -x {input.bt2idx} -U {input.trimmed} -S {removalDIR}/{id}.sam -p {threads} \
+        && samtools view -bS {removalDIR}/{id}.sam > {removalDIR}/{id}.bam \
+        && samtools view -b -f 4 -F 256 {removalDIR}/{id}.bam > {removalDIR}/{id}_unaligned.bam \
+        && samtools sort -n {removalDIR}/{id}_unaligned.bam -o {removalDIR}/{id}_unaligned_sorted.bam \
+        && samtools bam2fq {removalDIR}/{id}_unaligned_sorted.bam > {removalDIR}/{id}_unaligned.fastq"
+
+rule removeHumanContaminantsPaired:
+    input:
+        bt2idx = "{bowtie2IndexDIR}/hostHS",
+        f = "{trimmedDIR}/{id}_1_trim.fastq",
+        r = "{trimmedDIR}/{id}_2_trim.fastq",
+    output:
+        f = "{removalDIR}/{id}_unaligned_1.fastq",
+        r = "{removalDIR}/{id}_unaligned_2.fastq"
+    conda: env
+    threads: workflow.cores
+    shell: "bowtie2 -x {input.bt2idx} -1 {input.f} -2 {input.r} -S {removalDIR}/{id}.sam -p {threads} \
+        && samtools view -bS {removalDIR}/{id}.sam > {removalDIR}/{id}.bam \
+        && samtools view -b -f 12 -F 256 {removalDIR}/{id}.bam > {removalDIR}/{id}_unaligned.bam \
+        && samtools sort -n {removalDIR}/{id}_unaligned.bam -o {removalDIR}/{id}_unaligned_sorted.bam \
+        && samtools bam2fq {removalDIR}/{id}_unaligned_sorted.bam > {removalDIR}/{id}_unaligned.fastq \
+        && cat {removalDIR}/{id}_unaligned.fastq | grep '^@.*/1$' -A 3 --no-group-separator > {removalDIR}/{id}_unaligned_1.fastq \
+        && cat {removalDIR}/{id}_unaligned.fastq | grep '^@.*/2$' -A 3 --no-group-separator > {removalDIR}/{id}_unaligned_2.fastq"
+
+rule mergePaired:
+    input:
+        f = "{removalDIR}/{id}_unaligned_1.fastq",
+        r = "{removalDIR}/{id}_unaligned_2.fastq"
+    output:
+        merged = "{assembledDIR}/{id}_assembled.fastq",
+        html = "{assembledDIR}/{id}_report2.html",
+        json = "{assembledDIR}/{id}_report2.json"
+    conda: env
+    threads: workflow.cores
+    shell: "fastp -i {input.f} -I {input.r} -o {assembledDIR}/{id}_unassembled_1.fastq \
+        -O {assembledDIR}/{id}_unassembled_2.fastq -q {phredQuality} -w {threads} \
+        --detect_adapter_for_pe -h {output.html} -j {output.json} \
+        -m --merged_out {output.merged}"
+
+rule deduplicateSingle:
+    input: "{removalDIR}/{id}_unaligned.fastq"
+    output: "{collapsedDIR}/{id}_collapsed.fasta"
+    conda: env
+    shell: "fastx_collapser -i {input} -o {output}"
+
+rule deduplicatePaired:
+    input: join(assembledDIR, "{id}_assembled.fastq")
+    output: "{collapsedDIR}/{id}_collapsed.fasta"
+    conda: env
+    shell: "fastx_collapser -i {input} -o {output}"
