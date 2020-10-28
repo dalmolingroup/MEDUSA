@@ -57,7 +57,7 @@ rule downloadHumanPrimaryAssembly:
     && pigz -d {output} -p {threads}"
 
 rule bowtie2BuildHumanIndex:
-    input: "{referenceDIR}/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+    input: join(referenceDIR, "Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     output: "{bowtie2IndexDIR}/hostHS"
     conda: env
     threads: workflow.cores
@@ -65,39 +65,39 @@ rule bowtie2BuildHumanIndex:
 
 rule removeHumanContaminantsSingle:
     input:
-        bt2idx = "{bowtie2IndexDIR}/hostHS",
-        trimmed = "{trimmedDIR}/{id}_trim.fastq"
+        bt2idx = join(bowtie2IndexDIR, "hostHS"),
+        trimmed = join(trimmedDIR, "{id}_trim.fastq")
     output: "{removalDIR}/{id}_unaligned.fastq"
     conda: env
     threads: workflow.cores
-    shell: "bowtie2 -x {input.bt2idx} -U {input.trimmed} -S {removalDIR}/{id}.sam -p {threads} \
-        && samtools view -bS {removalDIR}/{id}.sam > {removalDIR}/{id}.bam \
-        && samtools view -b -f 4 -F 256 {removalDIR}/{id}.bam > {removalDIR}/{id}_unaligned.bam \
-        && samtools sort -n {removalDIR}/{id}_unaligned.bam -o {removalDIR}/{id}_unaligned_sorted.bam \
-        && samtools bam2fq {removalDIR}/{id}_unaligned_sorted.bam > {removalDIR}/{id}_unaligned.fastq"
+    shell: "bowtie2 -x {input.bt2idx} -U {input.trimmed} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
+        && samtools view -bS {removalDIR}/{wildcards.id}.sam > {removalDIR}/{wildcards.id}.bam \
+        && samtools view -b -f 4 -F 256 {removalDIR}/{wildcards.id}.bam > {removalDIR}/{wildcards.id}_unaligned.bam \
+        && samtools sort -n {removalDIR}/{wildcards.id}_unaligned.bam -o {removalDIR}/{wildcards.id}_unaligned_sorted.bam \
+        && samtools bam2fq {removalDIR}/{wildcards.id}_unaligned_sorted.bam > {removalDIR}/{wildcards.id}_unaligned.fastq"
 
 rule removeHumanContaminantsPaired:
     input:
-        bt2idx = "{bowtie2IndexDIR}/hostHS",
-        f = "{trimmedDIR}/{id}_1_trim.fastq",
-        r = "{trimmedDIR}/{id}_2_trim.fastq",
+        bt2idx = join(bowtie2IndexDIR, "hostHS"),
+        f = join(trimmedDIR, "{id}_1_trim.fastq"),
+        r = join(trimmedDIR, "{id}_2_trim.fastq")
     output:
         f = "{removalDIR}/{id}_unaligned_1.fastq",
         r = "{removalDIR}/{id}_unaligned_2.fastq"
     conda: env
     threads: workflow.cores
-    shell: "bowtie2 -x {input.bt2idx} -1 {input.f} -2 {input.r} -S {removalDIR}/{id}.sam -p {threads} \
-        && samtools view -bS {removalDIR}/{id}.sam > {removalDIR}/{id}.bam \
-        && samtools view -b -f 12 -F 256 {removalDIR}/{id}.bam > {removalDIR}/{id}_unaligned.bam \
-        && samtools sort -n {removalDIR}/{id}_unaligned.bam -o {removalDIR}/{id}_unaligned_sorted.bam \
-        && samtools bam2fq {removalDIR}/{id}_unaligned_sorted.bam > {removalDIR}/{id}_unaligned.fastq \
-        && cat {removalDIR}/{id}_unaligned.fastq | grep '^@.*/1$' -A 3 --no-group-separator > {removalDIR}/{id}_unaligned_1.fastq \
-        && cat {removalDIR}/{id}_unaligned.fastq | grep '^@.*/2$' -A 3 --no-group-separator > {removalDIR}/{id}_unaligned_2.fastq"
+    shell: "bowtie2 -x {input.bt2idx} -1 {input.f} -2 {input.r} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
+        && samtools view -bS {removalDIR}/{wildcards.id}.sam > {removalDIR}/{wildcards.id}.bam \
+        && samtools view -b -f 12 -F 256 {removalDIR}/{wildcards.id}.bam > {removalDIR}/{wildcards.id}_unaligned.bam \
+        && samtools sort -n {removalDIR}/{wildcards.id}_unaligned.bam -o {removalDIR}/{wildcards.id}_unaligned_sorted.bam \
+        && samtools bam2fq {removalDIR}/{wildcards.id}_unaligned_sorted.bam > {removalDIR}/{wildcards.id}_unaligned.fastq \
+        && cat {removalDIR}/{wildcards.id}_unaligned.fastq | grep '^@.*/1$' -A 3 --no-group-separator > {removalDIR}/{wildcards.id}_unaligned_1.fastq \
+        && cat {removalDIR}/{wildcards.id}_unaligned.fastq | grep '^@.*/2$' -A 3 --no-group-separator > {removalDIR}/{wildcards.id}_unaligned_2.fastq"
 
 rule mergePaired:
     input:
-        f = "{removalDIR}/{id}_unaligned_1.fastq",
-        r = "{removalDIR}/{id}_unaligned_2.fastq"
+        f = join(removalDIR, "{id}_unaligned_1.fastq"),
+        r = join(removalDIR, "{id}_unaligned_2.fastq")
     output:
         merged = "{assembledDIR}/{id}_assembled.fastq",
         html = "{assembledDIR}/{id}_report2.html",
@@ -110,7 +110,7 @@ rule mergePaired:
         -m --merged_out {output.merged}"
 
 rule deduplicateSingle:
-    input: "{removalDIR}/{id}_unaligned.fastq"
+    input: join(removalDIR, "{id}_unaligned.fastq")
     output: "{collapsedDIR}/{id}_collapsed.fasta"
     conda: env
     shell: "fastx_collapser -i {input} -o {output}"
