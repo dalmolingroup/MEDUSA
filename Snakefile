@@ -18,6 +18,9 @@ env = "envs/protocolMeta.yaml"
 IDs = glob_wildcards(join(inputDIR,
     "{id, [A-Za-z0-9]+}{suffix, (_[12])?}.fastq"))
 
+ruleorder: qualityControlPaired > qualityControlSingle
+ruleorder: removeHumanContaminantsPaired > removeHumanContaminantsSingle
+
 rule all:
     input:
         expand(join(preprocessingDIR, "collapsed/{id}_collapsed.fasta"), id = IDs.id)
@@ -104,8 +107,8 @@ rule mergePaired:
         json = "{assembledDIR}/{id}_report2.json"
     conda: env
     threads: workflow.cores
-    shell: "fastp -i {input.f} -I {input.r} -o {assembledDIR}/{id}_unassembled_1.fastq \
-        -O {assembledDIR}/{id}_unassembled_2.fastq -q {phredQuality} -w {threads} \
+    shell: "fastp -i {input.f} -I {input.r} -o {assembledDIR}/{wildcards.id}_unassembled_1.fastq \
+        -O {assembledDIR}/{wildcards.id}_unassembled_2.fastq -q {phredQuality} -w {threads} \
         --detect_adapter_for_pe -h {output.html} -j {output.json} \
         -m --merged_out {output.merged}"
 
