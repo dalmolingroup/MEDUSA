@@ -1,6 +1,6 @@
 from os.path import join
 
-# default args
+# input args
 preprocessingDIR = "Protocol/data"
 inputDIR = join(preprocessingDIR, "raw")
 phredQuality = "20"
@@ -16,14 +16,14 @@ collapsedDIR = join(preprocessingDIR, "collapsed")
 env = "envs/protocolMeta.yaml"
 
 IDs = glob_wildcards(join(inputDIR,
-    "{id, [A-Za-z0-9]+}{suffix, (_[12])?}.fastq"))
+    "{id, [A-Za-z0-9]+}{suffix, (_[1-2])?}.fastq"))
 
 ruleorder: qualityControlPaired > qualityControlSingle
 ruleorder: removeHumanContaminantsPaired > removeHumanContaminantsSingle
 
 rule all:
     input:
-        expand(join(preprocessingDIR, "collapsed/{id}_collapsed.fasta"), id = IDs.id)
+        expand(join(collapsedDIR, "{id}_collapsed.fasta"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -61,19 +61,24 @@ rule downloadHumanPrimaryAssembly:
 
 rule bowtie2BuildHumanIndex:
     input: join(referenceDIR, "Homo_sapiens.GRCh38.dna.primary_assembly.fa")
-    output: "{bowtie2IndexDIR}/hostHS"
+    output:
+        expand("{indexDIR}/hostHS.{index}.{bt2extension}", index = range(1, 5), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
+        expand("{indexDIR}/hostHS.rev.{index}.{bt2extension}", index = range(1, 3), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR)
+    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
     conda: env
     threads: workflow.cores
-    shell: "bowtie2-build {input} {output} --threads {threads}"
+    shell: "bowtie2-build {input} {params.indexPrefix} --threads {threads}"
 
 rule removeHumanContaminantsSingle:
     input:
-        bt2idx = join(bowtie2IndexDIR, "hostHS"),
+        expand("{indexDIR}/hostHS.{index}.{bt2extension}", index = range(1, 5), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
+        expand("{indexDIR}/hostHS.rev.{index}.{bt2extension}", index = range(1, 3), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
         trimmed = join(trimmedDIR, "{id}_trim.fastq")
     output: "{removalDIR}/{id}_unaligned.fastq"
+    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
     conda: env
     threads: workflow.cores
-    shell: "bowtie2 -x {input.bt2idx} -U {input.trimmed} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
+    shell: "bowtie2 -x {params.indexPrefix} -U {input.trimmed} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
         && samtools view -bS {removalDIR}/{wildcards.id}.sam > {removalDIR}/{wildcards.id}.bam \
         && samtools view -b -f 4 -F 256 {removalDIR}/{wildcards.id}.bam > {removalDIR}/{wildcards.id}_unaligned.bam \
         && samtools sort -n {removalDIR}/{wildcards.id}_unaligned.bam -o {removalDIR}/{wildcards.id}_unaligned_sorted.bam \
@@ -81,15 +86,17 @@ rule removeHumanContaminantsSingle:
 
 rule removeHumanContaminantsPaired:
     input:
-        bt2idx = join(bowtie2IndexDIR, "hostHS"),
+        expand("{indexDIR}/hostHS.{index}.{bt2extension}", index = range(1, 5), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
+        expand("{indexDIR}/hostHS.rev.{index}.{bt2extension}", index = range(1, 3), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
         f = join(trimmedDIR, "{id}_1_trim.fastq"),
         r = join(trimmedDIR, "{id}_2_trim.fastq")
     output:
         f = "{removalDIR}/{id}_unaligned_1.fastq",
         r = "{removalDIR}/{id}_unaligned_2.fastq"
+    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
     conda: env
     threads: workflow.cores
-    shell: "bowtie2 -x {input.bt2idx} -1 {input.f} -2 {input.r} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
+    shell: "bowtie2 -x {params.indexPrefix} -1 {input.f} -2 {input.r} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
         && samtools view -bS {removalDIR}/{wildcards.id}.sam > {removalDIR}/{wildcards.id}.bam \
         && samtools view -b -f 12 -F 256 {removalDIR}/{wildcards.id}.bam > {removalDIR}/{wildcards.id}_unaligned.bam \
         && samtools sort -n {removalDIR}/{wildcards.id}_unaligned.bam -o {removalDIR}/{wildcards.id}_unaligned_sorted.bam \
@@ -123,3 +130,24 @@ rule deduplicatePaired:
     output: "{collapsedDIR}/{id}_collapsed.fasta"
     conda: env
     shell: "fastx_collapser -i {input} -o {output}"
+
+# rule downloadNR:
+#     input: join, "")
+#     output: ""
+#     conda: env
+#     threads: workflow.cores
+#     shell: ""
+
+# rule diamondMakeDB:
+#     input: join, "")
+#     output: ""
+#     conda: env
+#     threads: workflow.cores
+#     shell: ""
+
+# rule alignment:
+#     input: join, "")
+#     output: ""
+#     conda: env
+#     threads: workflow.cores
+#     shell: ""
