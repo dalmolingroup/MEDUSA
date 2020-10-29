@@ -60,22 +60,22 @@ rule downloadHumanPrimaryAssembly:
     && pigz -d {output} -p {threads}"
 
 rule bowtie2BuildHumanIndex:
+    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
     input: join(referenceDIR, "Homo_sapiens.GRCh38.dna.primary_assembly.fa")
     output:
-        expand("{indexDIR}/hostHS.{index}.{bt2extension}", index = range(1, 5), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
-        expand("{indexDIR}/hostHS.rev.{index}.{bt2extension}", index = range(1, 3), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR)
-    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
+        expand(join(bowtie2IndexDIR, "hostHS.{index}.bt2l"), index = range(1, 5)),
+        expand(join(bowtie2IndexDIR, "hostHS.rev.{index}.bt2l"), index = range(1, 3))
     conda: env
     threads: workflow.cores
-    shell: "bowtie2-build {input} {params.indexPrefix} --threads {threads}"
+    shell: "bowtie2-build --large-index {input} {params.indexPrefix} --threads {threads}"
 
 rule removeHumanContaminantsSingle:
+    params: indexPrefix = join(bowtie2IndexDIR, "hostHS"),
     input:
-        expand("{indexDIR}/hostHS.{index}.{bt2extension}", index = range(1, 5), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
-        expand("{indexDIR}/hostHS.rev.{index}.{bt2extension}", index = range(1, 3), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
+        expand(join(bowtie2IndexDIR, "hostHS.{index}.bt2l"), index = range(1, 5)),
+        expand(join(bowtie2IndexDIR, "hostHS.rev.{index}.bt2l"), index = range(1, 3)),
         trimmed = join(trimmedDIR, "{id}_trim.fastq")
     output: "{removalDIR}/{id}_unaligned.fastq"
-    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
     conda: env
     threads: workflow.cores
     shell: "bowtie2 -x {params.indexPrefix} -U {input.trimmed} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
@@ -85,15 +85,15 @@ rule removeHumanContaminantsSingle:
         && samtools bam2fq {removalDIR}/{wildcards.id}_unaligned_sorted.bam > {removalDIR}/{wildcards.id}_unaligned.fastq"
 
 rule removeHumanContaminantsPaired:
+    params: indexPrefix = join(bowtie2IndexDIR, "hostHS"),
     input:
-        expand("{indexDIR}/hostHS.{index}.{bt2extension}", index = range(1, 5), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
-        expand("{indexDIR}/hostHS.rev.{index}.{bt2extension}", index = range(1, 3), bt2extension = ["bt2", "bt2l"], indexDIR = bowtie2IndexDIR),
+        expand(join(bowtie2IndexDIR, "hostHS.{index}.bt2l"), index = range(1, 5)),
+        expand(join(bowtie2IndexDIR, "hostHS.rev.{index}.bt2l"), index = range(1, 3)),
         f = join(trimmedDIR, "{id}_1_trim.fastq"),
         r = join(trimmedDIR, "{id}_2_trim.fastq")
     output:
         f = "{removalDIR}/{id}_unaligned_1.fastq",
         r = "{removalDIR}/{id}_unaligned_2.fastq"
-    params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
     conda: env
     threads: workflow.cores
     shell: "bowtie2 -x {params.indexPrefix} -1 {input.f} -2 {input.r} -S {removalDIR}/{wildcards.id}.sam -p {threads} \
