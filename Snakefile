@@ -153,17 +153,35 @@ rule diamondMakeDB:
     shell: "diamond makedb --in {input} -d {output} --threads {threads}"
 
 rule alignment:
-    params: unaligned = join(alignmentDIR, "{id}_unaligned.fasta")
     input:
         index = join(diamondIndexDIR, "nr.dmnd"),
         reads = join(collapsedDIR, "{id}_collapsed.fasta")
-    output: "{alignmentDIR}/{id}.m8"
+    output:
+        matches = "{alignmentDIR}/{id}.m8",
+        unaligned = "{alignmentDIR}/{id}_unaligned.fasta"
     conda: env
     threads: workflow.cores
-    shell: "touch {params.unaligned} \
-    && diamond blastx -d {input.index} -q {input.reads} -o {output} --top 3 --un {params.unaligned} --threads {threads}"
+    shell: "touch {output.unaligned} \
+    && diamond blastx -d {input.index} -q {input.reads} -o {output.matches} --top 3 --un {output.unaligned} --threads {threads}"
 
-#rule downloadTaxonomy:
+rule downloadTaxonomy:
+    output:
+        "{taxonomicDIR}/db/complete_taxa.db",
+        "{taxonomicDIR}/db/prot_mapping.db"
+    conda: env
+    shell: "basta taxonomy -d {taxonomicDIR}/db \
+    && basta download prot -d {taxonomicDIR}/db"
 
-#rule taxonomicClassification:
-
+rule taxonomicClassification:
+    input: join(alignmentDIR, "{id}.m8") 
+    output:
+        out = "{taxonomicDIR}/{id}_tax.txt",
+        lca = "{taxonomicDIR}/{id}_lca.html",
+        best = "{taxonomicDIR}/{id}_best.html"
+    conda: env
+    threads: workflow.cores
+    shell: "basta sequence {input} {output.out} prot -d {taxonomicDIR}/db -l 1 -m 1 -b True \
+    && awk -F \"\t\" '{{print $1\"\t\"$2}}' {output.out} > {taxonomicDIR}/{id}_lca.txt \
+    && awk -F \"\t\" '{{print $1\"\t\"$3}}' {output.out} > {taxonomicDIR}/{id}_best.txt \
+    && basta2krona.py {taxonomicDIR}/{id}_lca.txt {output.lca} \
+    && basta2krona.py {taxonomicDIR}/{id}_best.txt {output.best}"
