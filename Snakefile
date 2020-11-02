@@ -2,6 +2,9 @@ from os.path import join
 
 # input args
 preprocessingDIR = "Protocol/data"
+alignmentDIR = "Protocol/alignment"
+taxonomicDIR = "Protocol/taxonomic"
+functionalDIR = "Protocol/functional"
 inputDIR = join(preprocessingDIR, "raw")
 phredQuality = "20"
 trimmedDIR = join(preprocessingDIR, "trimmed")
@@ -11,6 +14,8 @@ ensemblRelease = "101"
 bowtie2IndexDIR = join(removalDIR, "index")
 assembledDIR = join(preprocessingDIR, "assembled")
 collapsedDIR = join(preprocessingDIR, "collapsed")
+NRDIR = join(alignmentDIR, "db")
+diamondIndexDIR = join(alignmentDIR, "index")
 
 # env created at .snakemake/conda
 env = "envs/protocolMeta.yaml"
@@ -20,10 +25,11 @@ IDs = glob_wildcards(join(inputDIR,
 
 ruleorder: qualityControlPaired > qualityControlSingle
 ruleorder: removeHumanContaminantsPaired > removeHumanContaminantsSingle
+ruleorder: deduplicatePaired > deduplicateSingle
 
 rule all:
     input:
-        expand(join(collapsedDIR, "{id}_collapsed.fasta"), id = IDs.id)
+        expand(join(alignmentDIR, "{id}.m8"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -131,23 +137,33 @@ rule deduplicatePaired:
     conda: env
     shell: "fastx_collapser -i {input} -o {output}"
 
-# rule downloadNR:
-#     input: join, "")
-#     output: ""
-#     conda: env
-#     threads: workflow.cores
-#     shell: ""
+rule downloadNR:
+    output: "{NRDIR}/nr"
+    conda: env
+    threads: workflow.cores
+    shell: "wget -P {NRDIR} \
+    ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz \
+    && pigz -d {output} -p {threads}"
 
-# rule diamondMakeDB:
-#     input: join, "")
-#     output: ""
-#     conda: env
-#     threads: workflow.cores
-#     shell: ""
+rule diamondMakeDB:
+    input: join(NRDIR, "nr")
+    output: "{diamondIndexDIR}/nr.dmnd"
+    conda: env
+    threads: workflow.cores
+    shell: "diamond makedb --in {input} -d {output} --threads {threads}"
 
-# rule alignment:
-#     input: join, "")
-#     output: ""
-#     conda: env
-#     threads: workflow.cores
-#     shell: ""
+rule alignment:
+    params: unaligned = join(alignmentDIR, "{id}_unaligned.fasta")
+    input:
+        index = join(diamondIndexDIR, "nr.dmnd"),
+        reads = join(collapsedDIR, "{id}_collapsed.fasta")
+    output: "{alignmentDIR}/{id}.m8"
+    conda: env
+    threads: workflow.cores
+    shell: "touch {params.unaligned} \
+    && diamond blastx -d {input.index} -q {input.reads} -o {output} --top 3 --un {params.unaligned} --threads {threads}"
+
+#rule downloadTaxonomy:
+
+#rule taxonomicClassification:
+
