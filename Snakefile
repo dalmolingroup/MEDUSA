@@ -29,7 +29,7 @@ ruleorder: deduplicatePaired > deduplicateSingle
 
 rule all:
     input:
-        expand(join(alignmentDIR, "{id}.m8"), id = IDs.id)
+        expand(join(taxonomicDIR, "{id}_tax.txt"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -62,8 +62,8 @@ rule downloadHumanPrimaryAssembly:
     conda: env
     threads: workflow.cores
     shell: "wget -P {referenceDIR} \
-    ftp://ftp.ensembl.org/pub/release-{ensemblRelease}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
-    && pigz -d {output} -p {threads}"
+        ftp://ftp.ensembl.org/pub/release-{ensemblRelease}/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz \
+        && pigz -d {output} -p {threads}"
 
 rule bowtie2BuildHumanIndex:
     params: indexPrefix = join(bowtie2IndexDIR, "hostHS")
@@ -142,8 +142,8 @@ rule downloadNR:
     conda: env
     threads: workflow.cores
     shell: "wget -P {NRDIR} \
-    ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz \
-    && pigz -d {output} -p {threads}"
+        ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz \
+        && pigz -d {output} -p {threads}"
 
 rule diamondMakeDB:
     input: join(NRDIR, "nr")
@@ -162,7 +162,7 @@ rule alignment:
     conda: env
     threads: workflow.cores
     shell: "touch {output.unaligned} \
-    && diamond blastx -d {input.index} -q {input.reads} -o {output.matches} --top 3 --un {output.unaligned} --threads {threads}"
+        && diamond blastx -d {input.index} -q {input.reads} -o {output.matches} --top 3 --un {output.unaligned} --threads {threads}"
 
 rule downloadTaxonomy:
     output:
@@ -170,7 +170,7 @@ rule downloadTaxonomy:
         "{taxonomicDIR}/db/prot_mapping.db"
     conda: env
     shell: "basta taxonomy -d {taxonomicDIR}/db \
-    && basta download prot -d {taxonomicDIR}/db"
+        && basta download prot -d {taxonomicDIR}/db"
 
 rule taxonomicClassification:
     input: join(alignmentDIR, "{id}.m8") 
@@ -181,7 +181,34 @@ rule taxonomicClassification:
     conda: env
     threads: workflow.cores
     shell: "basta sequence {input} {output.out} prot -d {taxonomicDIR}/db -l 1 -m 1 -b True \
-    && awk -F \"\t\" '{{print $1\"\t\"$2}}' {output.out} > {taxonomicDIR}/{id}_lca.txt \
-    && awk -F \"\t\" '{{print $1\"\t\"$3}}' {output.out} > {taxonomicDIR}/{id}_best.txt \
-    && basta2krona.py {taxonomicDIR}/{id}_lca.txt {output.lca} \
-    && basta2krona.py {taxonomicDIR}/{id}_best.txt {output.best}"
+        && awk -F \"\t\" '{{print $1\"\t\"$2}}' {output.out} > {taxonomicDIR}/{wildcards.id}_lca.txt \
+        && awk -F \"\t\" '{{print $1\"\t\"$3}}' {output.out} > {taxonomicDIR}/{wildcards.id}_best.txt \
+        && basta2krona.py {taxonomicDIR}/{wildcards.id}_lca.txt {output.lca} \
+        && basta2krona.py {taxonomicDIR}/{wildcards.id}_best.txt {output.best}"
+
+rule downloadUniprotMapping: 
+    output: "{functionalDIR}/idmapping_selected.tab"
+    conda: env
+    threads: workflow.cores
+    shell: "wget -P {functionalDIR} \
+        ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/idmapping_selected.tab.gz \
+        && pigz -d {output} -p {threads}"
+
+rule createDictionaryNR2GO:
+    input: join(functionalDIR, "idmapping_selected.tab") 
+    output: "{functionalDIR}/db/NR2GO_mapping.db"
+    conda: env
+    threads: workflow.cores
+    shell: "awk -F \"\t\" '{{if(($7!=\"\") && ($18!=\"\")){{print $18\"\t\"$7}}}}' {input} > {functionalDIR}/genbank2GO.txt \
+        && awk -F \"\t\" '{{if(($4!=\"\") && ($7!=\"\")){{print $18\"\t\"$7}}}}' {input} > {functionalDIR}/refseq2GO.txt \
+        && Rscript {functionalDIR}/dictionary.txt {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt {threads} \
+        && basta create_db {functionalDIR}/dictionary.txt nr2GO_mapping.db 0 1 -d {functionalDIR}/db"
+
+rule annotate:
+    input:
+        matches = join(alignmentDIR, "{id}.m8"),
+        leveldb = "{functionalDIR}/db/NR2GO_mapping.db"
+    output: ""
+    conda: env
+    threads: workflow.cores
+    shell: ""
