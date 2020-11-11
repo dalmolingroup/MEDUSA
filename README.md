@@ -5,7 +5,7 @@
 Go to the folder containing the Snakefile (via command line) and run:
 
 ```bash
-mkdir -p ./Protocol/{data/{assembled,collapsed,removal/{index,reference},raw,trimmed},alignment/{db,index},taxonomic/{db},functional/{db}}
+mkdir -p ./Protocol/{data/{assembled,collapsed,removal/{index,reference},raw,trimmed},alignment/{db,index},taxonomic/db,functional/db}
 ```
 
 ## 2 - Install Snakemake
