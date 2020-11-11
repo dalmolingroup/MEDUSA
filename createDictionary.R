@@ -1,4 +1,3 @@
-# input1 input2 output threads
 args <- commandArgs(trailingOnly = TRUE)
 
 library(dplyr)
@@ -27,21 +26,21 @@ removeUnknown <- function(df){
     df <- df[!idx,]
     return(df)
 }
-df <- fread("genbank2GO.txt", stringsAsFactors = FALSE,
-    head = FALSE, nThread = parallel::detectCores())
+df <- fread(args[2], stringsAsFactors = FALSE,
+    head = FALSE, nThread = as.integer(args[4]))
 df <- as.data.frame(df)
 df %>%
     fixCollapsed() %>%
     fixDuplicated() %>%
     removeUnknown() %>%
-    fwrite(file = "dictionary.txt", sep = "\t",
-        nThread = parallel::detectCores())
-df <- fread("refseq2GO.txt", stringsAsFactors = FALSE,
-    head = FALSE, nThread = parallel::detectCores())
+    fwrite(file = args[1], sep = "\t",
+        nThread = as.integer(args[4]))
+df <- fread(args[3], stringsAsFactors = FALSE,
+    head = FALSE, nThread = as.integer(args[4]))
 df <- as.data.frame(df)
 df %>%
     fixCollapsed() %>%
     fixDuplicated() %>%
     removeUnknown() %>%
-    fwrite(file = "dictionary.txt", sep = "\t",
-        append = TRUE, nThread = parallel::detectCores())
+    fwrite(file = args[1], sep = "\t",
+        append = TRUE, nThread = as.integer(args[4]))

@@ -29,7 +29,8 @@ ruleorder: deduplicatePaired > deduplicateSingle
 
 rule all:
     input:
-        expand(join(taxonomicDIR, "{id}_tax.txt"), id = IDs.id)
+        expand(join(taxonomicDIR, "{id}_tax.txt"), id = IDs.id),
+        expand(join(functionalDIR, "{id}_functional.txt"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -173,20 +174,22 @@ rule downloadTaxonomy:
         && basta download prot -d {taxonomicDIR}/db"
 
 rule taxonomicClassification:
-    input: join(alignmentDIR, "{id}.m8") 
+    input:
+        matches = join(alignmentDIR, "{id}.m8"),
+        levedb = "{taxonomicDIR}/db/prot_mapping.db"
     output:
         out = "{taxonomicDIR}/{id}_tax.txt",
         lca = "{taxonomicDIR}/{id}_lca.html",
         best = "{taxonomicDIR}/{id}_best.html"
     conda: env
     threads: workflow.cores
-    shell: "basta sequence {input} {output.out} prot -d {taxonomicDIR}/db -l 1 -m 1 -b True \
+    shell: "basta sequence {input.matches} {output.out} prot -d {taxonomicDIR}/db -l 1 -m 1 -b True \
         && awk -F \"\t\" '{{print $1\"\t\"$2}}' {output.out} > {taxonomicDIR}/{wildcards.id}_lca.txt \
         && awk -F \"\t\" '{{print $1\"\t\"$3}}' {output.out} > {taxonomicDIR}/{wildcards.id}_best.txt \
         && basta2krona.py {taxonomicDIR}/{wildcards.id}_lca.txt {output.lca} \
         && basta2krona.py {taxonomicDIR}/{wildcards.id}_best.txt {output.best}"
 
-rule downloadUniprotMapping: 
+rule downloadUniprotMapping:
     output: "{functionalDIR}/idmapping_selected.tab"
     conda: env
     threads: workflow.cores
@@ -200,15 +203,15 @@ rule createDictionaryNR2GO:
     conda: env
     threads: workflow.cores
     shell: "awk -F \"\t\" '{{if(($7!=\"\") && ($18!=\"\")){{print $18\"\t\"$7}}}}' {input} > {functionalDIR}/genbank2GO.txt \
-        && awk -F \"\t\" '{{if(($4!=\"\") && ($7!=\"\")){{print $18\"\t\"$7}}}}' {input} > {functionalDIR}/refseq2GO.txt \
-        && Rscript {functionalDIR}/dictionary.txt {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt {threads} \
-        && basta create_db {functionalDIR}/dictionary.txt nr2GO_mapping.db 0 1 -d {functionalDIR}/db"
+        && awk -F \"\t\" '{{if(($4!=\"\") && ($7!=\"\")){{print $4\"\t\"$7}}}}' {input} > {functionalDIR}/refseq2GO.txt \
+        && Rscript createDictionary.R {functionalDIR}/dictionary.txt {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt {threads} \
+        && basta create_db {functionalDIR}/dictionary.txt NR2GO_mapping.db 0 1 -d {functionalDIR}/db"
 
 rule annotate:
     input:
         matches = join(alignmentDIR, "{id}.m8"),
         leveldb = "{functionalDIR}/db/NR2GO_mapping.db"
-    output: ""
+    output: "{functionalDIR}/{id}_functional.txt"
     conda: env
     threads: workflow.cores
-    shell: ""
+    shell: "annotate {input.matches} {output} NR2GO -l -1 -d {functionalDIR}/db"
