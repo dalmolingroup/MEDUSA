@@ -167,8 +167,8 @@ rule alignment:
 
 rule downloadTaxonomy:
     output:
-        "{taxonomicDIR}/db/complete_taxa.db",
-        "{taxonomicDIR}/db/prot_mapping.db"
+        directory("{taxonomicDIR}/db/complete_taxa.db"),
+        directory("{taxonomicDIR}/db/prot_mapping.db")
     conda: env
     shell: "basta taxonomy -d {taxonomicDIR}/db \
         && basta download prot -d {taxonomicDIR}/db"
@@ -199,7 +199,7 @@ rule downloadUniprotMapping:
 
 rule createDictionaryNR2GO:
     input: join(functionalDIR, "idmapping_selected.tab") 
-    output: "{functionalDIR}/db/NR2GO_mapping.db"
+    output: directory("{functionalDIR}/db/NR2GO_mapping.db")
     conda: env
     threads: workflow.cores
     shell: "awk -F \"\t\" '{{if(($7!=\"\") && ($18!=\"\")){{print $18\"\t\"$7}}}}' {input} > {functionalDIR}/genbank2GO.txt \
