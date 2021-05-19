@@ -1,4 +1,4 @@
-# To use this pipeline you need to:
+# To execute the workflows from this repository you need to:
 
 ## 1 - Download this repository
 
