@@ -45,7 +45,7 @@ Get the pipeline environment from the Anaconda cloud:
 
 ```bash
 conda activate base
-conda install anaconda-client
+conda install anaconda-client -y
 conda env create arthurvinx/medusaPipeline
 conda activate medusaPipeline
 pip3 install -U plyvel --no-cache-dir --no-deps --force-reinstall
@@ -57,7 +57,7 @@ The recommended way to install Snakemake is via the conda package manager. The f
 
 ```bash
 conda activate base
-conda install -c conda-forge mamba
+conda install -c conda-forge mamba -y
 mamba create -c bioconda -c conda-forge -n snakemake snakemake
 ```
 
