@@ -15,7 +15,7 @@ cd Medusa-main/
 Go to the folder containing the Snakefile (via command line) and create the expected folder structure with:
 
 ```bash
-mkdir -p ./Protocol/{data/{assembled,collapsed,removal/{index,reference},raw,trimmed},alignment/{db,index},taxonomic/db,functional/db}
+mkdir -p ./Protocol/{data/{merged,assembled,result,collapsed,removal/{index,reference},raw,trimmed},alignment/{db,index},taxonomic/db,functional/db}
 ```
 
 ## 3 - Install the conda package manager
