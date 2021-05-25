@@ -37,7 +37,7 @@ ruleorder: taxonomicClassificationPaired > taxonomicClassificationSingle
 
 rule all:
     input:
-        expand(join(resultDIR, "{id}_taxonomic.txt"), id = IDs.id),
+        expand(join(resultDIR, "{id}_kaiju.names"), id = IDs.id),
         expand(join(resultDIR, "{id}_functional.txt"), id = IDs.id)
 
 rule qualityControlSingle:
