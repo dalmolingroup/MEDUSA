@@ -13,6 +13,8 @@ removalDIR = join(preprocessingDIR, "removal")
 referenceDIR = join(removalDIR, "reference")
 ensemblRelease = "104"
 bowtie2IndexDIR = join(removalDIR, "index")
+# max memory in byte to be used in SdBG construction (if set between 0-1, fraction of the machine's total memory)
+megahitMemory = "0.9"
 assembledDIR = join(preprocessingDIR, "assembled")
 mergedDIR = join(preprocessingDIR, "merged")
 collapsedDIR = join(preprocessingDIR, "collapsed")
@@ -32,13 +34,14 @@ ruleorder: removeHumanContaminantsPaired > removeHumanContaminantsSingle
 ruleorder: deduplicatePaired > deduplicateSingle
 ruleorder: diamondMakeDB > kaijuMakeDB
 ruleorder: assemblyPaired > assemblySingle
-ruleorder: assemblySingle > taxonomicClassificationContigs
 ruleorder: taxonomicClassificationPaired > taxonomicClassificationSingle
 
 rule all:
     input:
         expand(join(resultDIR, "{id}_kaiju.names"), id = IDs.id),
-        expand(join(resultDIR, "{id}_functional.txt"), id = IDs.id)
+        expand(join(resultDIR, "{id}_contigs_kaiju.names"), id = IDs.id),
+        expand(join(resultDIR, "{id}_functional.txt"), id = IDs.id),
+        expand(join(resultDIR, "{id}_functional_contigs.txt"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -131,10 +134,21 @@ rule mergePaired:
         -m --merged_out {output.merged}"
 
 rule assemblySingle:
-#TODO
+    input:
+        reads = join(removalDIR, "{id}_unaligned.fastq")
+    output:
+        contigs = "{assembledDIR}/{id}/final.contigs.fa"
+    threads: workflow.cores
+    shell: "megahit -r {input.reads} -o {assembledDIR}/{wildcards.id} -t {threads} -m {megahitMemory}"
 
 rule assemblyPaired:
-#TODO
+    input:
+        f = join(removalDIR, "{id}_unaligned_1.fastq"),
+        r = join(removalDIR, "{id}_unaligned_2.fastq")
+    output:
+        contigs = "{assembledDIR}/{id}/final.contigs.fa"
+    threads: workflow.cores
+    shell: "megahit -1 {input.f} -2 {input.r} -o {assembledDIR}/{wildcards.id} -t {threads} -m {megahitMemory}"
 
 rule taxonomicClassificationSingle:
     input:
@@ -148,7 +162,7 @@ rule taxonomicClassificationSingle:
     threads: workflow.cores
     shell: "kaiju -t {input.nodes} -f {input.fmi} -i {input.reads} -o {resultDIR}/kaiju.out -z {threads} \
     && kaiju-addTaxonNames -t {input.nodes} -n {input.names} -r superkingdom,phylum,class,order,family,genus,species -i {resultDIR}/kaiju.out -o {output.ranks} \
-    && kaiju2krona -t {input.nodes} -n {input.names} -l superkingdom,phylum,class,order,family,genus,species -i {resultDIR}/kaiju.out -o {resultDIR}/kaiju_krona \
+    && kaiju2krona -t {input.nodes} -n {input.names} -i {resultDIR}/kaiju.out -o {resultDIR}/kaiju_krona \
     && ktImportText -o {output.html} {resultDIR}/kaiju_krona \
     && rm {resultDIR}/kaiju.out {resultDIR}/kaiju_krona"
 
@@ -165,12 +179,25 @@ rule taxonomicClassificationPaired:
     threads: workflow.cores
     shell: "kaiju -t {input.nodes} -f {input.fmi} -i {input.f} -j {input.r} -o {resultDIR}/kaiju.out -z {threads} \
     && kaiju-addTaxonNames -t {input.nodes} -n {input.names} -r superkingdom,phylum,class,order,family,genus,species -i {resultDIR}/kaiju.out -o {output.ranks} \
-    && kaiju2krona -t {input.nodes} -n {input.names} -l superkingdom,phylum,class,order,family,genus,species -i {resultDIR}/kaiju.out -o {resultDIR}/kaiju_krona \
+    && kaiju2krona -t {input.nodes} -n {input.names} -i {resultDIR}/kaiju.out -o {resultDIR}/kaiju_krona \
     && ktImportText -o {output.html} {resultDIR}/kaiju_krona \
     && rm {resultDIR}/kaiju.out {resultDIR}/kaiju_krona"
 
 rule taxonomicClassificationContigs:
-#TODO
+    input:
+        reads = join(assembledDIR, "{id}/final.contigs.fa"),
+        fmi = join(taxonomicDIR, "db/kaijuNR.fmi"),
+        names = join(taxonomicDIR, "db/names.dmp"),
+        nodes = join(taxonomicDIR, "db/nodes.dmp")
+    output:
+        ranks = "{resultDIR}/{id}_contigs_kaiju.names",
+        html = "{resultDIR}/{id}_contigs_krona.html"
+    threads: workflow.cores
+    shell: "kaiju -t {input.nodes} -f {input.fmi} -i {input.reads} -o {resultDIR}/kaiju.out -z {threads} \
+    && kaiju-addTaxonNames -t {input.nodes} -n {input.names} -r superkingdom,phylum,class,order,family,genus,species -i {resultDIR}/kaiju.out -o {output.ranks} \
+    && kaiju2krona -t {input.nodes} -n {input.names} -i {resultDIR}/kaiju.out -o {resultDIR}/kaiju_krona \
+    && ktImportText -o {output.html} {resultDIR}/kaiju_krona \
+    && rm {resultDIR}/kaiju.out {resultDIR}/kaiju_krona"
 
 rule deduplicateSingle:
     input: join(removalDIR, "{id}_unaligned.fastq")
@@ -225,6 +252,17 @@ rule alignment:
     shell: "touch {output.unaligned} \
         && diamond blastx -d {input.index} -q {input.reads} -o {output.matches} --top 3 --un {output.unaligned} --threads {threads}"
 
+rule alignmentContigs:
+    input:
+        index = join(diamondIndexDIR, "nr.dmnd"),
+        reads = join(assembledDIR, "{id}/final.contigs.fa")
+    output:
+        matches = "{alignmentDIR}/{id}_contigs.m8",
+        unaligned = "{alignmentDIR}/{id}_contigs_unaligned.fasta"
+    threads: workflow.cores
+    shell: "touch {output.unaligned} \
+        && diamond blastx -d {input.index} -q {input.reads} -o {output.matches} --top 3 -F 15 --range-culling --un {output.unaligned} --threads {threads}"
+
 rule downloadUniprotMapping:
     output: "{functionalDIR}/idmapping_selected.tab"
     threads: workflow.cores
@@ -232,19 +270,36 @@ rule downloadUniprotMapping:
         ftp://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/idmapping/idmapping_selected.tab.gz \
         && pigz -d {output} -p {threads}"
 
-rule createDictionaryNR2GO:
+rule createDictionaries:
     input: join(functionalDIR, "idmapping_selected.tab") 
-    output: directory("{functionalDIR}/db/NR2GO.ldb")
+    output:
+        directory("{functionalDIR}/db/NR2GO.ldb"),
+        directory("{functionalDIR}/db/NR2Entrez.ldb")
     threads: workflow.cores
     shell: "awk -F \"\t\" '{{if(($7!=\"\") && ($18!=\"\")){{print $18\"\t\"$7}}}}' {input} > {functionalDIR}/genbank2GO.txt \
         && awk -F \"\t\" '{{if(($4!=\"\") && ($7!=\"\")){{print $4\"\t\"$7}}}}' {input} > {functionalDIR}/refseq2GO.txt \
-        && Rscript createDictionary.R {functionalDIR}/dictionary.txt {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt {threads} \
-        && annotate createdb {functionalDIR}/dictionary.txt NR2GO 0 1 -d {functionalDIR}/db"
+        && Rscript createDictionary.R {functionalDIR}/NR2GO.txt {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt {threads} \
+        && annotate createdb {functionalDIR}/NR2GO.txt NR2GO 0 1 -d {functionalDIR}/db \
+        && rm {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt \
+        && awk -F \"\t\" '{{if(($3!=\"\") && ($18!=\"\")){{print $18\"\t\"$3}}}}' {input} > {functionalDIR}/genbank2entrez.txt \
+        && awk -F \"\t\" '{{if(($4!=\"\") && ($3!=\"\")){{print $4\"\t\"$3}}}}' {input} > {functionalDIR}/refseq2entrez.txt \
+        && Rscript createDictionary.R {functionalDIR}/NR2Entrez.txt {functionalDIR}/genbank2entrez.txt {functionalDIR}/refseq2entrez.txt {threads} \
+        && annotate createdb {functionalDIR}/NR2Entrez.txt NR2Entrez 0 1 -d {functionalDIR}/db \
+        && rm {input} {functionalDIR}/genbank2entrez.txt {functionalDIR}/refseq2entrez.txt"
 
 rule annotate:
     input:
         matches = join(alignmentDIR, "{id}.m8"),
-        leveldb = "{functionalDIR}/db/NR2GO_mapping.db"
-    output: "{functionalDIR}/{id}_functional.txt"
+        matchesContigs = join(alignmentDIR, "{id}_contigs.m8"),
+        NR2GO = "{functionalDIR}/db/NR2GO.ldb",
+        NR2Entrez = "{functionalDIR}/db/NR2Entrez.ldb"
+    output:
+        GO = "{resultDIR}/{id}_functional_GO.txt",
+        contigsGO = "{resultDIR}/{id}_functional_contigs_GO.txt",
+        entrez = "{resultDIR}/{id}_functional_entrez.txt",
+        contigsEntrez = "{resultDIR}/{id}_functional_contigs_entrez.txt"
     threads: workflow.cores
-    shell: "annotate {input.matches} {output} NR2GO -l -1 -d {functionalDIR}/db"
+    shell: "annotate idmapping {input.matches} {output.GO} NR2GO -l 1 -d {functionalDIR}/db \
+        && annotate idmapping {input.matches} {output.entrez} NR2Entrez -l 1 -d {functionalDIR}/db \
+        && annotate idmapping {input.matchesContigs} {output.contigsGO} NR2GO -l 1 -d {functionalDIR}/db \
+        && annotate idmapping {input.matchesContigs} {output.contigsEntrez} NR2Entrez -l 1 -d {functionalDIR}/db"
