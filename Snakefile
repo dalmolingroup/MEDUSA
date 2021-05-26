@@ -309,8 +309,8 @@ rule annotate:
     input:
         matches = join(alignmentDIR, "{id}.m8"),
         matchesContigs = join(alignmentDIR, "{id}_contigs.m8"),
-        NR2GO = "{functionalDIR}/db/NR2GO.ldb",
-        NR2Entrez = "{functionalDIR}/db/NR2Entrez.ldb"
+        NR2GO = join(functionalDIR, "db/NR2GO.ldb"),
+        NR2Entrez = join(functionalDIR, "db/NR2Entrez.ldb")
     output:
         GO = "{resultDIR}/{id}_functional_GO.txt",
         contigsGO = "{resultDIR}/{id}_functional_contigs_GO.txt",
