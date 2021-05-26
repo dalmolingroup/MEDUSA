@@ -77,7 +77,7 @@ Move your raw fastq files to the inputDIR specified in the Snakefile. By default
 To start this pipeline, go to the folder containing the Snakefile (via command line) and run:
 
 ```bash
-snakemake --cores --use-conda
+snakemake --cores
 ```
 
 This will use all available cores whenever is possible. Alternatively, you may define the number of available cores.
