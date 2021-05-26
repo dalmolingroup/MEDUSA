@@ -40,8 +40,10 @@ rule all:
     input:
         expand(join(resultDIR, "{id}_kaiju.names"), id = IDs.id),
         expand(join(resultDIR, "{id}_contigs_kaiju.names"), id = IDs.id),
-        expand(join(resultDIR, "{id}_functional.txt"), id = IDs.id),
-        expand(join(resultDIR, "{id}_functional_contigs.txt"), id = IDs.id)
+        expand(join(resultDIR, "{id}_functional_GO.txt"), id = IDs.id),
+        expand(join(resultDIR, "{id}_functional_entrez.txt"), id = IDs.id),
+        expand(join(resultDIR, "{id}_functional_contigs_GO.txt"), id = IDs.id),
+        expand(join(resultDIR, "{id}_functional_contigs_entrez.txt"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
