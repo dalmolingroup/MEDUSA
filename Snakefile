@@ -6,6 +6,7 @@ preprocessingDIR = "Protocol/data"
 alignmentDIR = "Protocol/alignment"
 taxonomicDIR = "Protocol/taxonomic"
 functionalDIR = "Protocol/functional"
+resultDIR = "Protocol/result"
 inputDIR = join(preprocessingDIR, "raw")
 phredQuality = "20"
 trimmedDIR = join(preprocessingDIR, "trimmed")
@@ -20,7 +21,6 @@ mergedDIR = join(preprocessingDIR, "merged")
 collapsedDIR = join(preprocessingDIR, "collapsed")
 NRDIR = join(alignmentDIR, "db")
 diamondIndexDIR = join(alignmentDIR, "index")
-resultDIR = join(alignmentDIR, "result")
 
 # using the existing conda environment
 os.system("source $(conda info --base)/etc/profile.d/conda.sh")
