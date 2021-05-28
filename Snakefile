@@ -28,7 +28,7 @@ IDs = glob_wildcards(join(inputDIR,
 ruleorder: qualityControlPaired > qualityControlSingle
 ruleorder: removeHumanContaminantsPaired > removeHumanContaminantsSingle
 ruleorder: deduplicatePaired > deduplicateSingle
-ruleorder: diamondMakeDB > kaijuMakeDB
+ruleorder: diamondMakeDB > kaijuPrepare
 ruleorder: assemblyPaired > assemblySingle
 ruleorder: taxonomicClassificationPaired > taxonomicClassificationSingle
 
@@ -251,10 +251,10 @@ rule diamondMakeDB:
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
         && diamond makedb --in {input} -d {output} --threads {threads}"
 
-rule kaijuMakeDB:
+rule kaijuPrepare:
     input: join(NRDIR, "nr")
     output:
-        fmi = "{taxonomicDIR}/db/kaijuNR.fmi",
+        convertedNR = "{taxonomicDIR}/db/kaijuNR.fasta",
         names = "{taxonomicDIR}/db/names.dmp",
         nodes = "{taxonomicDIR}/db/nodes.dmp"
     threads: workflow.cores
@@ -266,11 +266,31 @@ rule kaijuMakeDB:
         && rm {taxonomicDIR}/db/taxdump.tar.gz \
         && wget -P {taxonomicDIR}/db ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.gz \
         && pigz -d {taxonomicDIR}/db/prot.accession2taxid.gz -p {threads} \
-        && kaiju-convertNR -t {output.nodes} -g {taxonomicDIR}/db/prot.accession2taxid -e $(conda info --base)/envs/medusaPipeline/bin/kaiju-excluded-accessions.txt -a -o {taxonomicDIR}/db/kaijuNR.fasta -i {input} \
-        ; kaiju-mkbwt -a ACDEFGHIKLMNPQRSTVWY -o {taxonomicDIR}/db/kaijuNR {taxonomicDIR}/db/kaijuNR.fasta \
-        ; rm {input} {taxonomicDIR}/db/kaijuNR.fasta {taxonomicDIR}/db/prot.accession2taxid \
+        && kaiju-convertNR -t {output.nodes} -g {taxonomicDIR}/db/prot.accession2taxid -e $(conda info --base)/envs/medusaPipeline/bin/kaiju-excluded-accessions.txt -a -o {output.convertedNR} -i {input} \
+        && rm {taxonomicDIR}/db/prot.accession2taxid {input}"
+
+rule kaijuMakeBWT:
+    input: join(taxonomicDIR, "db/kaijuNR.fasta")
+    output:
+        bwt = "{taxonomicDIR}/db/kaijuNR.bwt",
+        sa = "{taxonomicDIR}/db/kaijuNR.sa"
+    threads: workflow.cores
+    shell: "set +eu \
+        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
+        && kaiju-mkbwt -a ACDEFGHIKLMNPQRSTVWY -o {taxonomicDIR}/db/kaijuNR {input} \
+        && rm {input}"
+
+rule kaijuMakeFMI:
+    input:
+        bwt = join(taxonomicDIR, "db/kaijuNR.bwt"),
+        sa = join(taxonomicDIR, "db/kaijuNR.sa")
+    output:
+        fmi = "{taxonomicDIR}/db/kaijuNR.fmi"
+    threads: workflow.cores
+    shell: "set +eu \
+        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
         && kaiju-mkfmi {taxonomicDIR}/db/kaijuNR \
-        ; rm {taxonomicDIR}/db/kaijuNR.sa {taxonomicDIR}/db/kaijuNR.bwt"
+        && rm {input.bwt} {input.sa}"
 
 rule alignment:
     input:
