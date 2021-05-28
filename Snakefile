@@ -152,7 +152,7 @@ rule assemblySingle:
     threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && megahit -r {input.reads} -o {assembledDIR}/{wildcards.id} -t {threads} -m {megahitMemory}"
+        && megahit -r {input.reads} --force -o {assembledDIR}/{wildcards.id} -t {threads} -m {megahitMemory}"
 
 rule assemblyPaired:
     input:
@@ -163,7 +163,7 @@ rule assemblyPaired:
     threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && megahit -1 {input.f} -2 {input.r} -o {assembledDIR}/{wildcards.id} -t {threads} -m {megahitMemory}"
+        && megahit -1 {input.f} -2 {input.r} --force -o {assembledDIR}/{wildcards.id} -t {threads} -m {megahitMemory}"
 
 rule taxonomicClassificationSingle:
     input:
@@ -260,7 +260,7 @@ rule kaijuMakeDB:
     threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && wget -P {taxonomicDIR}/db wget ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz \
+        && wget -P {taxonomicDIR}/db ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz \
         && tar -xf {taxonomicDIR}/db/taxdump.tar.gz nodes.dmp names.dmp \
         && mv nodes.dmp {taxonomicDIR}/db && mv names.dmp {taxonomicDIR}/db \
         && rm {taxonomicDIR}/db/taxdump.tar.gz \
