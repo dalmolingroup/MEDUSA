@@ -277,7 +277,7 @@ rule kaijuMakeBWT:
     threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && kaiju-mkbwt -a ACDEFGHIKLMNPQRSTVWY -o {taxonomicDIR}/db/kaijuNR {input} \
+        && kaiju-mkbwt -n {threads} -a ACDEFGHIKLMNPQRSTVWY -o {taxonomicDIR}/db/kaijuNR {input} \
         && rm {input}"
 
 rule kaijuMakeFMI:
@@ -286,7 +286,6 @@ rule kaijuMakeFMI:
         sa = join(taxonomicDIR, "db/kaijuNR.sa")
     output:
         fmi = "{taxonomicDIR}/db/kaijuNR.fmi"
-    threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
         && kaiju-mkfmi {taxonomicDIR}/db/kaijuNR \
