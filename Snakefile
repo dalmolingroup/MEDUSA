@@ -16,6 +16,8 @@ ensemblRelease = "104"
 bowtie2IndexDIR = join(removalDIR, "index")
 # max memory in byte to be used in SdBG construction (if set between 0-1, fraction of the machine's total memory)
 megahitMemory = "0.9"
+# max number of threads for kaiju-mkbwt
+kaijumkbwtThreads = 10
 assembledDIR = join(preprocessingDIR, "assembled")
 mergedDIR = join(preprocessingDIR, "merged")
 collapsedDIR = join(preprocessingDIR, "collapsed")
@@ -274,7 +276,7 @@ rule kaijuMakeBWT:
     output:
         bwt = "{taxonomicDIR}/db/kaijuNR.bwt",
         sa = "{taxonomicDIR}/db/kaijuNR.sa"
-    threads: workflow.cores
+    threads: kaijumkbwtThreads
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
         && kaiju-mkbwt -n {threads} -a ACDEFGHIKLMNPQRSTVWY -o {taxonomicDIR}/db/kaijuNR {input} \
