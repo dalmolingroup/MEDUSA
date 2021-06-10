@@ -347,21 +347,46 @@ rule createDictionaries:
         && annotate createdb {functionalDIR}/NR2Entrez.txt NR2Entrez 0 1 -d {functionalDIR}/db \
         && rm {input} {functionalDIR}/genbank2entrez.txt {functionalDIR}/refseq2entrez.txt"
 
-rule annotate:
+rule annotateGO:
     input:
         matches = join(alignmentDIR, "{id}.m8"),
-        matchesContigs = join(alignmentDIR, "{id}_contigs.m8"),
-        NR2GO = join(functionalDIR, "db/NR2GO.ldb"),
-        NR2Entrez = join(functionalDIR, "db/NR2Entrez.ldb")
+        NR2GO = join(functionalDIR, "db/NR2GO.ldb")
     output:
         GO = "{resultDIR}/{id}_functional_GO.txt",
-        contigsGO = "{resultDIR}/{id}_functional_contigs_GO.txt",
-        entrez = "{resultDIR}/{id}_functional_entrez.txt",
+    threads: workflow.cores
+    shell: "set +eu \
+        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
+        && annotate idmapping {input.matches} {output.GO} NR2GO -l 1 -d {functionalDIR}/db"
+
+rule annotateGOContigs:
+    input:
+        matchesContigs = join(alignmentDIR, "{id}_contigs.m8"),
+        NR2GO = join(functionalDIR, "db/NR2GO.ldb")
+    output:
+        contigsGO = "{resultDIR}/{id}_functional_contigs_GO.txt"
+    threads: workflow.cores
+    shell: "set +eu \
+        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
+        && annotate idmapping {input.matchesContigs} {output.contigsGO} NR2GO -l 1 -d {functionalDIR}/db"
+
+rule annotateEntrez:
+    input:
+        matches = join(alignmentDIR, "{id}.m8"),
+        NR2Entrez = join(functionalDIR, "db/NR2Entrez.ldb")
+    output:
+        entrez = "{resultDIR}/{id}_functional_entrez.txt"
+    threads: workflow.cores
+    shell: "set +eu \
+        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
+        && annotate idmapping {input.matches} {output.entrez} NR2Entrez -l 1 -d {functionalDIR}/db"
+
+rule annotateEntrezContigs:
+    input:
+        matchesContigs = join(alignmentDIR, "{id}_contigs.m8"),
+        NR2Entrez = join(functionalDIR, "db/NR2Entrez.ldb")
+    output:
         contigsEntrez = "{resultDIR}/{id}_functional_contigs_entrez.txt"
     threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && annotate idmapping {input.matches} {output.GO} NR2GO -l 1 -d {functionalDIR}/db \
-        && annotate idmapping {input.matches} {output.entrez} NR2Entrez -l 1 -d {functionalDIR}/db \
-        && annotate idmapping {input.matchesContigs} {output.contigsGO} NR2GO -l 1 -d {functionalDIR}/db \
         && annotate idmapping {input.matchesContigs} {output.contigsEntrez} NR2Entrez -l 1 -d {functionalDIR}/db"
