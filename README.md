@@ -15,7 +15,7 @@ cd Medusa-main/
 Go to the folder containing the Snakefile (via command line) and create the expected folder structure with:
 
 ```bash
-mkdir -p ./Protocol/{result,data/{merged,assembled,collapsed,removal/{index,reference},raw,trimmed},alignment/{db,index},taxonomic/db,functional/db}
+mkdir -p ./Pipeline/{result,data/{merged,assembled,collapsed,removal/{index,reference},raw,trimmed},alignment/{db,index},taxonomic/db,functional/db}
 ```
 
 ## 3 - Install the conda package manager
@@ -70,7 +70,7 @@ snakemake --help
 
 ## 6 - Move the input files to the expected location
 
-Move your raw fastq files to the inputDIR specified in the Snakefile. By default, the inputDIR is "Protocol/data/raw" and paired-end filenames are expected to present the suffixes "_1.fastq" and "_2.fastq". Alternatively, you may change the inputDIR editing the Snakefile. It is worth to mention that all paths in the Snakefile are interpreted relative to the directory Snakemake is executed in.
+Move your raw fastq files to the inputDIR specified in the Snakefile. By default, the inputDIR is "Pipeline/data/raw" and paired-end filenames are expected to present the suffixes "_1.fastq" and "_2.fastq". Alternatively, you may change the inputDIR editing the Snakefile. It is worth to mention that all paths in the Snakefile are interpreted relative to the directory Snakemake is executed in.
 
 ## 7 - Run snakemake
 

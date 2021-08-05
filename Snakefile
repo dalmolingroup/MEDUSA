@@ -2,11 +2,11 @@ from os.path import join
 import os
 
 # input args
-preprocessingDIR = "Protocol/data"
-alignmentDIR = "Protocol/alignment"
-taxonomicDIR = "Protocol/taxonomic"
-functionalDIR = "Protocol/functional"
-resultDIR = "Protocol/result"
+preprocessingDIR = "Pipeline/data"
+alignmentDIR = "Pipeline/alignment"
+taxonomicDIR = "Pipeline/taxonomic"
+functionalDIR = "Pipeline/functional"
+resultDIR = "Pipeline/result"
 inputDIR = join(preprocessingDIR, "raw")
 phredQuality = "20"
 trimmedDIR = join(preprocessingDIR, "trimmed")
@@ -39,9 +39,7 @@ rule all:
         expand(join(resultDIR, "{id}_kaiju.names"), id = IDs.id),
         expand(join(resultDIR, "{id}_contigs_kaiju.names"), id = IDs.id),
         expand(join(resultDIR, "{id}_functional_GO.txt"), id = IDs.id),
-        expand(join(resultDIR, "{id}_functional_entrez.txt"), id = IDs.id),
-        expand(join(resultDIR, "{id}_functional_contigs_GO.txt"), id = IDs.id),
-        expand(join(resultDIR, "{id}_functional_contigs_entrez.txt"), id = IDs.id)
+        expand(join(resultDIR, "{id}_functional_contigs_GO.txt"), id = IDs.id)
 
 rule qualityControlSingle:
     input: join(inputDIR, "{id}.fastq")
@@ -331,8 +329,7 @@ rule downloadUniprotMapping:
 rule createDictionaries:
     input: join(functionalDIR, "idmapping_selected.tab") 
     output:
-        directory("{functionalDIR}/db/NR2GO.ldb"),
-        directory("{functionalDIR}/db/NR2Entrez.ldb")
+        directory("{functionalDIR}/db/NR2GO.ldb")
     threads: workflow.cores
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
@@ -340,12 +337,7 @@ rule createDictionaries:
         && awk -F \"\t\" '{{if(($4!=\"\") && ($7!=\"\")){{print $4\"\t\"$7}}}}' {input} > {functionalDIR}/refseq2GO.txt \
         && Rscript createDictionary.R {functionalDIR}/NR2GO.txt {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt {threads} \
         && annotate createdb {functionalDIR}/NR2GO.txt NR2GO 0 1 -d {functionalDIR}/db \
-        && rm {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt \
-        && awk -F \"\t\" '{{if(($3!=\"\") && ($18!=\"\")){{print $18\"\t\"$3}}}}' {input} > {functionalDIR}/genbank2entrez.txt \
-        && awk -F \"\t\" '{{if(($4!=\"\") && ($3!=\"\")){{print $4\"\t\"$3}}}}' {input} > {functionalDIR}/refseq2entrez.txt \
-        && Rscript createDictionary.R {functionalDIR}/NR2Entrez.txt {functionalDIR}/genbank2entrez.txt {functionalDIR}/refseq2entrez.txt {threads} \
-        && annotate createdb {functionalDIR}/NR2Entrez.txt NR2Entrez 0 1 -d {functionalDIR}/db \
-        && rm {input} {functionalDIR}/genbank2entrez.txt {functionalDIR}/refseq2entrez.txt"
+        && rm {functionalDIR}/genbank2GO.txt {functionalDIR}/refseq2GO.txt"
 
 rule annotateGO:
     input:
@@ -368,25 +360,3 @@ rule annotateGOContigs:
     shell: "set +eu \
         && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
         && annotate idmapping {input.matchesContigs} {output.contigsGO} NR2GO -l 1 -d {functionalDIR}/db"
-
-rule annotateEntrez:
-    input:
-        matches = join(alignmentDIR, "{id}.m8"),
-        NR2Entrez = join(functionalDIR, "db/NR2Entrez.ldb")
-    output:
-        entrez = "{resultDIR}/{id}_functional_entrez.txt"
-    threads: workflow.cores
-    shell: "set +eu \
-        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && annotate idmapping {input.matches} {output.entrez} NR2Entrez -l 1 -d {functionalDIR}/db"
-
-rule annotateEntrezContigs:
-    input:
-        matchesContigs = join(alignmentDIR, "{id}_contigs.m8"),
-        NR2Entrez = join(functionalDIR, "db/NR2Entrez.ldb")
-    output:
-        contigsEntrez = "{resultDIR}/{id}_functional_contigs_entrez.txt"
-    threads: workflow.cores
-    shell: "set +eu \
-        && . $(conda info --base)/etc/profile.d/conda.sh && conda activate medusaPipeline \
-        && annotate idmapping {input.matchesContigs} {output.contigsEntrez} NR2Entrez -l 1 -d {functionalDIR}/db"
