@@ -80,4 +80,4 @@ To start this pipeline, go to the folder containing the Snakefile (via command l
 snakemake --cores
 ```
 
-This will use all available cores whenever possible. Alternatively, you may define the number of available cores as seen in the [Snakemake command line interface](https://snakemake.readthedocs.io/en/stable/executing/cli.html).
+This will use all available cores whenever possible. Alternatively, you may define the number of available cores as seen in the [Snakemake command line interface guide](https://snakemake.readthedocs.io/en/stable/executing/cli.html).
