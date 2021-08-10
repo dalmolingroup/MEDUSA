@@ -70,7 +70,7 @@ snakemake --help
 
 ## 6 - Move the input files to the expected location
 
-Move your raw fastq files to the inputDIR specified in the Snakefile. By default, the inputDIR is "Pipeline/data/raw" and paired-end filenames are expected to present the suffixes "_1.fastq" and "_2.fastq". Alternatively, you may change the inputDIR editing the Snakefile. It is worth to mention that all paths in the Snakefile are interpreted relative to the directory Snakemake is executed in.
+Move your raw FASTQ files to the inputDIR specified in the Snakefile. By default, the inputDIR is "Pipeline/data/raw" and paired-end filenames are expected to present the suffixes "_1.fastq" and "_2.fastq". Alternatively, you may change the inputDIR editing the Snakefile. It is worth to mention that all paths in the Snakefile are interpreted relative to the directory Snakemake is executed in.
 
 ## 7 - Run snakemake
 
