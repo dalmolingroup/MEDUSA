@@ -1,3 +1,6 @@
+**[dalmolingroup/euryale](https://github.com/dalmolingroup/euryale) is a new pipeline, based on MEDUSA, but with performance and portability improvements, making MEDUSA able to be executed in Docker and Singularity environments. 
+If you're interested in running MEDUSA, check it out!**
+
 # To execute the workflow from this repository you need to:
 
 ## 1 - Download this repository
