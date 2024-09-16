@@ -44,12 +44,11 @@ conda -V
 
 ## 4 - Get the pipeline environment
 
-Get the pipeline environment from the Anaconda cloud:
+Get the pipeline environment from the YAML file:
 
 ```bash
 conda activate base
-conda install anaconda-client -y
-conda env create arthurvinx/medusaPipeline
+conda env create -f environment.yml
 conda activate medusaPipeline
 pip3 install -U plyvel --no-cache-dir --no-deps --force-reinstall
 ```
